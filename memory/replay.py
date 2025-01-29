@@ -68,7 +68,7 @@ class ReplayBuffer:
         Returns the current number of elements in the buffer.
         
         Returns:
-            tuple: Batch of transitions.
+            int: number of stored transitions.
         """
         
         return len(self.buffer)
