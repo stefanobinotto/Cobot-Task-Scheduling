@@ -12,9 +12,9 @@ class DQN(nn.Module):
         ----------
             state_dim: int
                 Dimension of each state.
-            fc1_units: list
+            hidden_layers: list
                 List of number of hidden nodes.
-            action_size: int
+            action_dim: int
                 Dimension of action space.
         """
         super(DQN, self).__init__()
