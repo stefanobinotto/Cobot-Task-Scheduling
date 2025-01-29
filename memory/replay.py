@@ -4,8 +4,7 @@ import torch
 from collections import deque
 
 class ReplayBuffer:
-    
-    def __init__(self, max_capacity: int, device: torch.device|str) -> None:
+    def __init__(self, max_capacity: int, batch_size: int, device: torch.device|str) -> None:
         """
         Replay Buffer memory to save the state, action, reward sequence from the current episode.
         
@@ -13,13 +12,15 @@ class ReplayBuffer:
         ----------
             max_capacity: int
                 Max buffer capacity.
+            batch_size: int
+                Size of the batch.
             device: torch.device|int
                 Device on which to save sampled transitions.
         """
-        
         self.capacity = max_capacity
+        self.batch_size = batch_size
         self.device = device
-
+        
         # deque for storing transitions
         self.buffer = deque(maxlen=self.capacity)
 
@@ -41,7 +42,6 @@ class ReplayBuffer:
             done: bool
                 Terminal flag.
         """
-        
         assert isinstance(state, np.ndarray), "Invalid state!"
         assert isinstance(action, int), "Invalid action!"
         assert isinstance(reward, float), "Invalid reward!"
@@ -51,24 +51,18 @@ class ReplayBuffer:
         self.buffer.append((state, action, reward, next_state, done))
 
     
-    def sample(self, batch_size) -> tuple:
+    def sample(self) -> tuple:
         """
         Sample a batch of transitions from the buffer.
-        
-        Parameters
-        ----------
-            batch_size: int
-                Size of the batch.
 
         Returns
         -------
             tuple
                 Batch of transitions.
         """
-
-        assert self.size() >= batch_size, "Replay Buffer not big enough for sampling!"
+        assert self.size() >= self.batch_size, "Replay Buffer not big enough for sampling!"
         
-        batch = random.sample(self.buffer, batch_size)
+        batch = random.sample(self.buffer, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
         
         return torch.tensor(np.array(states), dtype=torch.float32, device=self.device), \
@@ -86,5 +80,4 @@ class ReplayBuffer:
             int
                 Number of stored transitions.
         """
-        
         return len(self.buffer)
