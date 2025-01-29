@@ -23,6 +23,8 @@ class DQN(nn.Module):
         # model attributes
         self.input_dim = state_dim
         self.output_dim = action_dim
+
+        # network
         prev_size = self.input_dim
         self.linears = nn.ModuleList()
         for l_size in hidden_layers:
