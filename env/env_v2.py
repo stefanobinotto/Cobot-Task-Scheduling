@@ -7,20 +7,20 @@ class CobotEnv:
 
     def __init__(self, n_operators: int, robot_execution_time: list, id_operator: int, mu_operators: tuple, std: float = 0.04) -> None:
         """
-        Initializes an Cobot environment
+        Initializes an Cobot environment.
 
         Parameters
         ----------
-        n_operators : int
-            Number of human operators
-        robot_execution_time : list
-            List containing the robot task processing time
-        id_operator : int
-            Id of the operator
-        mu_operators : tuple
-            Tuple of shape (n_operators x n_tasks) containing the mean values of the normal distribution for each task for each human operator
-        std : float
-            Standard deviation of the normal distribution used to sample operators' processing time (default 0.04)
+        n_operators: int
+            Number of human operators.
+        robot_execution_time: list
+            List containing the robot task processing time.
+        id_operator: int
+            Id of the operator.
+        mu_operators: tuple
+            Tuple of shape (n_operators x n_tasks) containing the mean values of the normal distribution for each task for each human operator.
+        std: float
+            Standard deviation of the normal distribution used to sample operators' processing time (default 0.04).
         """
         self.std = std
         self.robot_execution_time = np.array(robot_execution_time) # robot tasks execution time
@@ -38,17 +38,17 @@ class CobotEnv:
 
     def reset(self, id_operator: int) -> tuple[tuple, np.ndarray]:
         """
-        Reset the environment to the initial state and re-sample new processing time of the human operators and returns the initial observation
+        Reset the environment to the initial state and re-sample new processing time of the human operators and returns the initial observation.
 
         Parameters
         ----------
-        id_operator : int
-            Id of the operator
+        id_operator: int
+            Id of the operator.
 
         Returns
         -------
         tuple, np.ndarray
-            Initial state of the environment and sampled execution time of the human operators
+            Initial state of the environment and sampled execution time of the human operators.
         """
 
         self.operators_sampled_time = self.sample_process_time() #operators processing time: (n_operators x n_tasks)
@@ -66,19 +66,19 @@ class CobotEnv:
 
     def step(self, action: int, new_id_operator: int = None) -> tuple[tuple, float, bool]:
         """
-        Simulates scheduling action and calculates rewards
+        Simulates scheduling action and calculates rewards.
 
         Parameters
         ----------
-        action : int
-            Id of the next scheduled tasks
-        new_id_operator : Optional[int]
-            Id of the new operator, None otherwise
+        action: int
+            Id of the next scheduled tasks.
+        new_id_operator: Optional[int]
+            Id of the new operator, None otherwise.
         
         Returns
         -------
         tuple, float, bool
-            Current state of the environment, reward, whether the episode is over or not
+            Current state of the environment, reward, whether the episode is over or not.
         """
 
         assert (action >= min(min(self.robot_task_id),min(self.operator_task_id))) and (action <= max(max(self.robot_task_id),max(self.operator_task_id))), "Invalid input! Task ID out of bound."
@@ -178,10 +178,12 @@ class CobotEnv:
 
     def check_and_finish(self) -> bool:
         """
+        Check whether the episode can be concluded in this step, then end it.
+        
         Returns
         -------
         bool
-            True if the episode is over, False otherwise
+            True if the episode is over, False otherwise.
         """
 
         if self.robot_scheduled == 0 and self.operator_scheduled == 0:
@@ -309,12 +311,12 @@ class CobotEnv:
             
     def sample_process_time(self) -> np.ndarray:
         """
-        Samples processing time for each task for each operator
+        Samples processing time for each task for each operator.
 
         Returns
         -------
         np.ndarray
-            Array of shape (n_operators x n_tasks) containing the processing time for each task for each operator
+            Array of shape (n_operators x n_tasks) containing the processing time for each task for each operator.
         """
         
         return np.array([np.around(np.random.normal(loc=self.mu_operators[i], scale=self.std), decimals=3) for i in range(self.n_operators)])
@@ -322,12 +324,12 @@ class CobotEnv:
 
     def set_operator(self, new_id_operator: int) -> None:
         """
-        Set new operator and change operator execution time in state
+        Set new operator and change operator execution time in state.
 
         Parameters
         ----------
-        id_operator : int
-            Id of the new operator
+        id_operator: int
+            Id of the new operator.
         """
         
         assert new_id_operator < self.n_operators, "Invalid Input!"
@@ -342,12 +344,12 @@ class CobotEnv:
 
     def is_over(self) -> bool:
         """
-        Check whether the episode is over
+        Check whether the episode is over.
 
         Returns
         -------
         bool
-            True whether the episode is over, False otherwise
+            True whether the episode is over, False otherwise.
         """
         
         return np.sum(self.robot_done) + np.sum(self.operator_done) == 20.0 # sum of number tasks done by robot and tasks done by operators must be 20 at the end of an episode
@@ -355,12 +357,12 @@ class CobotEnv:
     
     def get_total_time(self) -> float:
         """
-        Return the total elapsed time of the episode
+        Return the total elapsed time of the episode.
 
         Returns
         -------
         float
-            Episode elapsed time
+            Episode elapsed time.
         """
         
         # robot total time
@@ -373,12 +375,12 @@ class CobotEnv:
 
     def get_state(self) -> tuple:
         """
-        Return the current state of the environment
+        Return the current state of the environment.
 
         Returns
         -------
         tuple
-            Current state
+            Current state.
         """
         
         return self.robot_done, self.robot_scheduled, self.robot_execution_time, self.operator_done, self.operator_scheduled, self.operator_execution_time
