@@ -377,7 +377,7 @@ class CobotEnv:
 
         Returns
         -------
-        np.ndarray
+        tuple
             Current state
         """
         
