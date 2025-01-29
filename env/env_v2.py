@@ -4,8 +4,13 @@ class CobotEnv:
     """
     The Cobot environment
     """
+    ROBOT_PROCESS_TIME = [0.372,1.1,0.685,0.47,0.489,0.271,1.1,0.62,0.333,0.23,0.878,0.809,0.711] # taken from data, constant
+    SLOW_OPERATOR_EXECUTION_TIME = [0.5,0.667,0.333,1,0.5,0.5,0.333,1,0.667,0.5,0.667,0.5,1]
+    t=0.8
+    EXPERT_OPERATOR_EXECUTION_TIME = [round(mu*t, 3) for mu in SLOW_OPERATOR_EXECUTION_TIME] # 80% of slow operator, used as mean values
+    MU_OPERATORS = (SLOW_OPERATOR_EXECUTION_TIME,EXPERT_OPERATOR_EXECUTION_TIME)
 
-    def __init__(self, n_operators: int, robot_execution_time: list, id_operator: int, mu_operators: tuple, std: float = 0.04) -> None:
+    def __init__(self, n_operators: int = 2, robot_execution_time: list = ROBOT_PROCESS_TIME, id_operator: int = 0, mu_operators: list = MU_OPERATORS, std: float = 0.04) -> None:
         """
         Initializes an Cobot environment.
 
@@ -36,23 +41,25 @@ class CobotEnv:
         self.reset(id_operator)
 
 
-    def reset(self, id_operator: int) -> tuple[tuple, np.ndarray]:
+    def reset(self, id_operator: int | None) -> tuple:
         """
         Reset the environment to the initial state and re-sample new processing time of the human operators and returns the initial observation.
 
         Parameters
         ----------
         id_operator: int
-            Id of the operator.
+            Id of the new operator, None otherwise.
 
         Returns
         -------
-        tuple, np.ndarray
-            Initial state of the environment and sampled execution time of the human operators.
+        tuple
+            Initial state of the environment.
         """
 
         self.operators_sampled_time = self.sample_process_time() #operators processing time: (n_operators x n_tasks)
-        self.id_operator = id_operator
+        
+        if id_operator is not None:
+            self.id_operator = id_operator
         
         # State
         self.robot_done = np.zeros(len(self.robot_task_id), dtype='int') # 0 = not done, 1 = done
@@ -61,7 +68,7 @@ class CobotEnv:
         self.operator_scheduled = 0 # id of the task the operator has scheduled, 0 otherwise
         self.operator_execution_time = np.copy(self.operators_sampled_time[self.id_operator]) # operators tasks execution time
 
-        return self.get_state(), self.operators_sampled_time
+        return self.get_state()
 
 
     def step(self, action: int, new_id_operator: int = None) -> tuple[tuple, float, bool]:
