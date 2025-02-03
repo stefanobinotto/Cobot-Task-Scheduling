@@ -32,11 +32,15 @@ class DQN(nn.Module):
             prev_size = l_size
         self.linear_out = nn.Linear(prev_size, self.output_dim)
 
+        
     def forward(self, x):
         """
         Map state -> action values.
         """
         for l in self.linears:
             x = F.relu(l(x))
+            #print(x)
+            #assert not torch.isnan(x).any(), "NaN detected!"
         out = self.linear_out(x)
+
         return out
