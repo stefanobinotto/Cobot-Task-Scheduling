@@ -2,122 +2,266 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 import numpy as np
-import tqdm
+from tqdm import tqdm
+import pandas as pd
+import random
+import math
 
+# my packages
 from models.dqn import DQN
-from memory.replay import ReplayBuffer
 from env.env_v2 import CobotEnv
+from utils.functions import soft_update, hard_update, plot
+from memory.replay import ReplayBuffer
+
 
 class Agent:
+
     def __init__(self, hyperparameters: dict):
-
-        self.hyp = hyperparameters
-        #self.gamma = hyperparameters['GAMMA']
-        #self.tau = hyperparameters['TAU']
-        #self.state_size = hyperparameters['STATE_SIZE']
-        #self.action_size = hyperparameters['ACTION_SIZE']
-        #self.epsilon_start = hyperparameters['EPSILON_START']
-        #self.epsilon_end = hyperparameters['EPSILON_END']
-        #self.epsilon_decay = hyperparameters['EPSILON_DECAY']
-        #self.lr = hyperparameters['LR']
-        #self.lr_step_size = hyperparameters['LR_STEP_SIZE']
-        #self.lr_gamma = hyperparameters['LR_GAMMA']
-        #self.buffer_size = hyperparameters['BUFFER_SIZE']
-        #self.batch_size = hyperparameters['BATCH_SIZE']
+        self.hp = hyperparameters
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        #print(self.device)
 
-        # Policy network and Target Network
-        self.policy_net = DQN(hyp['STATE_SIZE'], hyp['HIDDEN_LAYERS'], hyp['ACTION_SIZE']).to(self.device)
-        self.target_net = DQN(hyp['STATE_SIZE'], hyp['HIDDEN_LAYERS'], hyp['ACTION_SIZE']).to(self.device)
-        
+        # policy network
+        self.policy_net = DQN(self.hp['STATE_SIZE'], self.hp['HIDDEN_LAYERS'], self.hp['ACTION_SIZE']).to(self.device)
+        # target network
+        self.target_net = DQN(self.hp['STATE_SIZE'], self.hp['HIDDEN_LAYERS'], self.hp['ACTION_SIZE']).to(self.device)
         for p in self.target_net.parameters(): # freeze params
             p.requires_grad = False
-            
         hard_update(self.policy_net, self.target_net)
 
-        # loss function and optimization algorithm
+        # loss function
         self.loss_fn = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=hyp['LR'])
-        
-        if (self.lr_gamma is not None) and (self.lr_step_size is not None):
-            self.scheduler = StepLR(self.optimizer, step_size=hyp['LR_STEP_SIZE'], gamma=hyp['LR_GAMMA']) # PROVARE ANCHE REDUCE LR ON PLATEAU
+        # optimization algorithm
+        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=self.hp['LR'])
+        if self.hp['LR_STEP_SIZE'] is not None and self.hp['LR_GAMMA'] is not None:
+            self.scheduler = StepLR(self.optimizer, step_size=self.hp['LR_STEP_SIZE'], gamma=self.hp['LR_GAMMA']) # PROVARE ANCHE REDUCE LR ON PLATEAU
 
         # Experience Replay
-        self.memory = ReplayBuffer(max_capacity=hyp['BUFFER_SIZE'], batch_size=hyp['BATCH_SIZE'], device=self.device)
+        self.memory = ReplayBuffer(max_capacity=self.hp['BUFFER_SIZE'], batch_size=self.hp['BATCH_SIZE'])
 
 
-    def act(self, state, deterministic) -> int:
-
-
-    def learn():
-        #prendi un batch ed imparalo
-
-
-    def hard_update(self, main_model: nn.Module, target_model: nn.Module) -> None:
+    def state_to_flat_tensor(self, state: tuple) -> torch.Tensor:
         """
-        Update target model parameters:
-        
-        θ_target = θ_main
-            
+        Convert a state (tuple) into a flat tensor.
+
         Parameters
         ----------
-            main_model: nn.Module
-                Weights will be copied from.
-            target_model: nn.Module
-                Weights will be copied to.
+            state: tuple
+                Tuple containing the state of the environment to convert into a tensor.
+
+        Returns
+        -------
+            torch.float32
+                Flat tansor of the state.          
         """
-        target_model.load_state_dict(main_model.state_dict())
-    
-    
-    def soft_update(self, main_model: nn.Module, target_model: nn.Module, tau: float) -> None:
-        """
-        Soft update target model parameters:
-        
-        θ_target = τ*θ_main + (1 - τ)*θ_target
-        
-        Parameters
-        ----------
-            main_model: nn.Module
-                Weights will be copied from.
-            target_model: nn.Module
-                Weights will be copied to.
-            tau: float
-                Interpolation parameter.
-        """    
-        for target_param, main_param in zip(target_model.parameters(), main_model.parameters()):
-            target_param.data.copy_(tau*main_param.data + (1.0-tau)*target_param.data)
+        s0 = torch.tensor(state[0], dtype=torch.float32)
+        s1 = torch.tensor([state[1]], dtype=torch.float32)
+        s2 = torch.tensor(state[2], dtype=torch.float32)
+        s3 = torch.tensor(state[3], dtype=torch.float32)
+        s4 = torch.tensor([state[4]], dtype=torch.float32)
+        s5 = torch.tensor(state[5], dtype=torch.float32)
+        return torch.cat((s0,s1,s2,s3,s4,s5))
 
     
-    def train(n_episodes: int):
+    def act(self, state: torch.Tensor, mask: torch.Tensor, epsilon: float = None) -> torch.Tensor:
+        """
+        Select a valid (non-masked) action according to an epsilon greedy policy.
+
+        Parameters
+        ----------
+            state: torch.Tensor
+                State of the environment.
+            mask: torch.Tensor
+                Mask of valid actions from the given state.
+            epsilon: float
+                For epsilon greedy policy, if None -> act deterministically.
+
+        Returns
+        -------
+            torch.float32
+                Flat tansor of the state             
+        """  
+        # select a random action
+        if epsilon is not None and random.random() < epsilon:
+            valid_actions = torch.where(mask == 1)[0]  # available actions indeces
+            action = torch.tensor(random.choice(valid_actions.tolist()), dtype=torch.int64) # tensor(a)            
+        # select the greedy action
+        else:
+            with torch.no_grad():
+                # unsqueeze to add the batch dimension as input for the net
+                # we get tensor([[q1], [q2], [q3], [q4]]), so squeeze() to get tensor([q1, q2, q3, q4])
+                # argmax gives tensor(a)
+                q_values = self.policy_net(state.unsqueeze(dim=0).to(self.device)).squeeze().cpu() # move to cpu to free space
+                large = torch.finfo(q_values.dtype).min # -INF
+                action = (q_values+large*(1-mask)+large*(1-mask)).argmax()
+                if action.is_cuda:
+                    raise Exception("Dentro act() impostare su cpu il tensore action!!!")
+                #print("\rStato: ",state)
+                print("\rQ-values: ",q_values)
+                print("\rMasked Q-values: ",q_values+large*(1-mask)+large*(1-mask))
+                #print("\rAction: ", action)
+        return action
+    
+
+    def learn(self, batch: tuple) -> float:
+        # tseparate the single elements of the transitions
+        states, actions, rewards, next_states, dones, next_masks = zip(*batch)
+
+        # stack tensors to create batch-like tensors
+        states = torch.stack(states).to(self.device)
+        actions = torch.stack(actions).to(self.device)
+        rewards = torch.stack(rewards).to(self.device)
+        next_states = torch.stack(next_states).to(self.device)
+        dones = torch.stack(dones).to(self.device)
+        next_masks = torch.stack(next_masks).to(self.device)
+
+        # compute target Q values
+        with torch.no_grad():
+            next_q_values = self.target_net(next_states)
+            large = torch.finfo(next_q_values.dtype).min # -INF
+            # masking and maxing
+            max_next_q_value = (next_q_values + large*(1-next_masks) + large*(1-next_masks)).max(dim=1)[0]
+            # Q target
+            target_q = rewards + (1-dones)*self.hp['GAMMA'] * max_next_q_value   # shape [batch size]
+        
+        # compute current Q values
+        current_q = self.policy_net(states).gather(dim=1, index=actions.unsqueeze(dim=1)).squeeze() # shape [batch size]
+
+        # loss and optimization
+        loss = self.loss_fn(current_q, target_q)
+        print("Loss:",loss.item())
+        self.optimizer.zero_grad()  # clear gradients
+        loss.backward()             # compute gradients
+        #torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 1.)
+        self.optimizer.step()       # update policy network
+        
+        return loss.item()
+
+    
+    def train(self, n_episodes: int):
 
         # instance of the environment
         env = CobotEnv()
 
-        # list to keep track of rewards collected per episode
-        rewards_history = []
+        # list to keep track of return, loss, epsilon, lr and model saving collected from every episode
+        scores, losses, epsilons, lrs, saves = [], [], [], [], []
         
-        # list to keep track of epsilon decay
-        epsilon_history = []
-
-        epsilon = self.hyp['EPSILON_START']
-
-        step = 0
-
-        for e in tqdm(range(1, n_episodes+1), desc = "Episode #:"):
+        # to track best return for model selection
+        best_episode_score = -np.inf
+        update_count = 0
+        # initialize epsilon
+        epsilon = self.hp['EPSILON_START']
+        
+        for episode in tqdm(range(1, n_episodes+1), desc="# of episodes:"):            
             state = env.reset()
-            rewards = 0
+            state = self.state_to_flat_tensor(state) # to convert the state tuple to a flat tensor
+
+            episode_score, episode_loss, loss_count = 0.0, 0.0, 0
             done = False
+
+            # until episode is not over
             while not done:
-                action = agent.act(state, deterministic=False) # select action
+                # get valid actions
+                mask = env.get_valid_actions()
+                # select best action, according to epsilon greedy policy and valid actions
+                action = self.act(state, mask, epsilon)
+                # execute action
+                next_state, reward, done = env.step(action.item() + 1) # +1 makes the action range between 1 and ACTION_SIZE
+                next_mask = env.get_valid_actions()
+                # convert next state, reward and done to tensors
+                next_state = self.state_to_flat_tensor(next_state)
+                #print("\rReward:",reward)
+                episode_score += reward
+                reward = torch.tensor(reward, dtype=torch.float32)
+                done = torch.tensor(done, dtype=torch.float32)
+                # cumulate reward
+                # store transition into replay buffer
+                self.memory.push((state, action, reward, next_state, done, next_mask))
+
+                state = next_state
                 
+                # if enough samples have been collected into the replay buffer
+                if self.memory.size() >= self.hp['BATCH_SIZE']:
+                    batch = self.memory.sample()
+                    loss = self.learn(batch)
+                    
+                    episode_loss += loss
+                    loss_count += 1
+                    update_count += 1
+
+                    if self.hp['HARD_UPDATE_EVERY'] is None:
+                        soft_update(self.policy_net, self.target_net)
+                    else:
+                        if update_count > self.hp['HARD_UPDATE_EVERY']:
+                            update_count = 0
+                            print("\rHard Update Target Network!")
+                            hard_update(self.policy_net, self.target_net)
+                        
+                    # Decay epsilon after every update
+                    if self.hp['EPSILON_DECAY'] is None:
+                        #linear decay
+                        epsilon = self.hp['EPSILON_START'] - (self.hp['EPSILON_START'] - self.hp['EPSILON_END']) * (episode / n_episodes)
+                    else:
+                        # exponential decay
+                        epsilon = self.hp['EPSILON_END'] + (self.hp['EPSILON_START'] - self.hp['EPSILON_END']) * math.exp(-1. * episode / self.hp['EPSILON_DECAY'])
             
-
+            # display the performance every 100 episodes
+            if (episode % 100 == 0):
+                if loss_count == 0:
+                    print('\rEpisode {} | Score: {:.2f} | Loss: {:.2f} | LR: {:.2f} | Eps: {:.2f}'.format(episode, episode_score, episode_loss, self.scheduler.get_last_lr(), epsilon))
+                else:
+                    print('\rEpisode {} | Score: {:.2f} | Loss: {:.2f} | LR: {:.2f} | Eps: {:.2f}'.format(episode, episode_score, episode_loss/loss_count, self.scheduler.get_last_lr(), epsilon))
             
+            # save model if episode
+            if episode_score > best_episode_score:
+                best_episode_score = episode_score
+                saves.append("Best Model saved!")
+                print('\rSaving model - Episode {} - Score: {:.2f}'.format(episode, episode_score))
+                torch.save(self.policy_net.state_dict(), self.hp['BEST_MODEL_PATH'])
+            else:
+                saves.append("")
 
+            # training logs
+            scores.append(episode_score)
+            if loss_count == 0:
+                losses.append(episode_loss)
+            else:
+                losses.append(episode_loss/loss_count)
+            epsilons.append(epsilon)
+            lrs.append(self.scheduler.get_last_lr())
+            
+            # update lr after every episode (only if at least one update step has been done)
+            if self.hp['LR_STEP_SIZE'] is not None and self.hp['LR_GAMMA'] is not None and loss_count>0:
+                self.scheduler.step()
 
+            print("Episode n°:", episode)
+            #print("\rBuffer size:", self.memory.size())
+            #print("\rReturn: ", episode_score)
+            for name, param in self.policy_net.named_parameters():
+                #if episode == 4:
+                print("\r",name, param.grad)
 
-
-
-
-
+        '''
+        METTERE QUI LA PARTE IN CUI SALVE I LOG AD OGNI EPISODIO DI SCORE, LOSS; LR; EPSILO,
+        '''
+        # save training logs
+        data = {
+            "Episode": list(range(1, len(scores) + 1)),
+            "Score": scores,
+            "Loss": losses,
+            "Epsilon": epsilons,
+            "LearningRate": lrs,
+            "Model saving": saves
+        }
+        df = pd.DataFrame(data)
+        df.to_csv(self.hp['LOG_PATH'], index=False)
+        plot(scores, losses, epsilons, lrs, self.hr['PLOT_PATH'])
+        print(f"Dati salvati in {self.hp['LOG_PATH']} e plottati in {self.hr['PLOT_PATH']}")
         
+                
+
+    def evaluate(self, model, env, n_eval_episodes):
+        """
+        Qui dentro eseguire n_eval_episodes episodi e restituire mean return e std return
+        """
+        #prendere path del modello salvato, load del modello, creazione env, esecuzione degli episodi e calcolo metriche
