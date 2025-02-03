@@ -1,14 +1,16 @@
 import numpy as np
+import torch
 
 class CobotEnv:
     """
     The Cobot environment
     """
+    #constants
     ROBOT_PROCESS_TIME = [0.372,1.1,0.685,0.47,0.489,0.271,1.1,0.62,0.333,0.23,0.878,0.809,0.711] # taken from data, constant
     SLOW_OPERATOR_EXECUTION_TIME = [0.5,0.667,0.333,1,0.5,0.5,0.333,1,0.667,0.5,0.667,0.5,1]
-    t=0.8
-    EXPERT_OPERATOR_EXECUTION_TIME = [round(mu*t, 3) for mu in SLOW_OPERATOR_EXECUTION_TIME] # 80% of slow operator, used as mean values
+    EXPERT_OPERATOR_EXECUTION_TIME = [round(mu*0.8, 3) for mu in SLOW_OPERATOR_EXECUTION_TIME] # 80% of slow operator, used as mean values
     MU_OPERATORS = (SLOW_OPERATOR_EXECUTION_TIME,EXPERT_OPERATOR_EXECUTION_TIME)
+    
 
     def __init__(self, n_operators: int = 2, robot_execution_time: list = ROBOT_PROCESS_TIME, id_operator: int = 0, mu_operators: list = MU_OPERATORS, std: float = 0.04) -> None:
         """
@@ -16,16 +18,16 @@ class CobotEnv:
 
         Parameters
         ----------
-        n_operators: int
-            Number of human operators.
-        robot_execution_time: list
-            List containing the robot task processing time.
-        id_operator: int
-            Id of the operator.
-        mu_operators: tuple
-            Tuple of shape (n_operators x n_tasks) containing the mean values of the normal distribution for each task for each human operator.
-        std: float
-            Standard deviation of the normal distribution used to sample operators' processing time (default 0.04).
+            n_operators: int
+                Number of human operators.
+            robot_execution_time: list
+                List containing the robot task processing time.
+            id_operator: int
+                Id of the operator.
+            mu_operators: tuple
+                Tuple of shape (n_operators x n_tasks) containing the mean values of the normal distribution for each task for each human operator.
+            std: float
+                Standard deviation of the normal distribution used to sample operators' processing time.
         """
         self.std = std
         self.robot_execution_time = np.array(robot_execution_time) # robot tasks execution time
@@ -41,19 +43,19 @@ class CobotEnv:
         self.reset(id_operator)
 
 
-    def reset(self, id_operator: int | None) -> tuple:
+    def reset(self, id_operator: int = None) -> tuple:
         """
         Reset the environment to the initial state and re-sample new processing time of the human operators and returns the initial observation.
 
         Parameters
         ----------
-        id_operator: int
-            Id of the new operator, None otherwise.
+            id_operator: int
+                Id of the new operator, None otherwise.
 
         Returns
         -------
-        tuple
-            Initial state of the environment.
+            tuple
+                Initial state of the environment.
         """
 
         self.operators_sampled_time = self.sample_process_time() #operators processing time: (n_operators x n_tasks)
@@ -77,28 +79,35 @@ class CobotEnv:
 
         Parameters
         ----------
-        action: int
-            Id of the next scheduled tasks.
-        new_id_operator: Optional[int]
-            Id of the new operator, None otherwise.
+            action: int
+                Id of the next scheduled tasks.
+            new_id_operator: Optional[int]
+                Id of the new operator, None otherwise.
         
         Returns
         -------
-        tuple, float, bool
-            Current state of the environment, reward, whether the episode is over or not.
+            tuple, float, bool
+                Current state of the environment, reward, whether the episode is over or not.
         """
 
         assert (action >= min(min(self.robot_task_id),min(self.operator_task_id))) and (action <= max(max(self.robot_task_id),max(self.operator_task_id))), "Invalid input! Task ID out of bound."
 
-        robot_task_done = self.robot_task_id * self.robot_done
-        operator_task_done = self.operator_task_id * self.operator_done
-        task_done = np.concatenate((robot_task_done[robot_task_done!=0], operator_task_done[operator_task_done!=0]))
+        robot_task_done = self.robot_task_id[self.robot_done == 1]
+        operator_task_done = self.operator_task_id[self.operator_done == 1]
+        task_done = np.concatenate((robot_task_done, operator_task_done))
+        if action in task_done:
+            print("\rAzione: ",action)
+            print("\rTask fatti finora: ",task_done)
+            print("\rMaschera: ",self.get_valid_actions())
         assert (action not in task_done), "Invalid input! Task already done!"
 
         
         # change operator and update execution time in state
         if new_id_operator is not None:
             self.set_operator(new_id_operator)
+
+        initial_time = self.get_total_time()
+
         
         #######################
         ### Task assignment ###
@@ -114,7 +123,7 @@ class CobotEnv:
             self.robot_scheduled = action
             
             if self.check_and_finish():
-                return self.get_state(), -self.get_total_time(), True
+                return self.get_state(), initial_time-self.get_total_time(), True
 
             # end step
             return self.get_state(), 0, False
@@ -155,7 +164,7 @@ class CobotEnv:
             self.robot_scheduled = 0
                 
             if self.check_and_finish():
-                return self.get_state(), -self.get_total_time(), True
+                return self.get_state(), initial_time-self.get_total_time(), True
 
         # operator finishes first
         elif robot_time > operator_time:
@@ -165,7 +174,7 @@ class CobotEnv:
             self.operator_scheduled = 0
             
             if self.check_and_finish():
-                return self.get_state(), -self.get_total_time(), True
+                return self.get_state(), initial_time-self.get_total_time(), True
             
         # robot and operator finish simultaneously
         else:
@@ -177,10 +186,10 @@ class CobotEnv:
             self.operator_scheduled = 0
 
             if self.check_and_finish():
-                self.get_state(), -self.get_total_time(), True
+                return self.get_state(), initial_time-self.get_total_time(), True
 
         # end of step
-        return self.get_state(), 0, False
+        return self.get_state(), initial_time-self.get_total_time(), False
 
 
     def check_and_finish(self) -> bool:
@@ -189,17 +198,17 @@ class CobotEnv:
         
         Returns
         -------
-        bool
-            True if the episode is over, False otherwise.
+            bool
+                True if the episode is over, False otherwise.
         """
 
         if self.robot_scheduled == 0 and self.operator_scheduled == 0:
             
             # Check whether robot and operator have no schedulable tasks in common, or one of them has no longer schedulable tasks
             
-            robot_task_done = self.robot_task_id * self.robot_done
-            operator_task_done = self.operator_task_id * self.operator_done
-            task_scheduled_so_far = np.concatenate((robot_task_done[robot_task_done!=0], operator_task_done[operator_task_done!=0]))
+            robot_task_done = self.robot_task_id[self.robot_done == 1]
+            operator_task_done = self.operator_task_id[self.operator_done == 1]
+            task_scheduled_so_far = np.concatenate((robot_task_done, operator_task_done))
             
             robot_task_to_be_done = np.setdiff1d(self.robot_task_id, task_scheduled_so_far)
             operator_task_to_be_done = np.setdiff1d(self.operator_task_id, task_scheduled_so_far)
@@ -244,9 +253,9 @@ class CobotEnv:
 
             # Check whether robot and operator have no schedulable tasks in common, or robot  has no longer a schedulable task
             
-            robot_task_done = self.robot_task_id * self.robot_done
-            operator_task_done = self.operator_task_id * self.operator_done
-            task_scheduled_so_far = np.concatenate((robot_task_done[robot_task_done!=0], operator_task_done[operator_task_done!=0], [self.operator_scheduled]))
+            robot_task_done = self.robot_task_id[self.robot_done == 1]
+            operator_task_done = self.operator_task_id[self.operator_done == 1]
+            task_scheduled_so_far = np.concatenate((robot_task_done, operator_task_done, [self.operator_scheduled]))
             
             robot_task_to_be_done = np.setdiff1d(self.robot_task_id, task_scheduled_so_far)
             operator_task_to_be_done = np.setdiff1d(self.operator_task_id, task_scheduled_so_far)
@@ -280,9 +289,9 @@ class CobotEnv:
         else: #self.operator_scheduled == 0
             # Check whether robot and operator have no schedulable tasks in common
             
-            robot_task_done = self.robot_task_id * self.robot_done
-            operator_task_done = self.operator_task_id * self.operator_done
-            task_scheduled_so_far = np.concatenate((robot_task_done[robot_task_done!=0], operator_task_done[operator_task_done!=0], [self.robot_scheduled]))
+            robot_task_done = self.robot_task_id[self.robot_done == 1]
+            operator_task_done = self.operator_task_id[self.operator_done == 1]
+            task_scheduled_so_far = np.concatenate((robot_task_done, operator_task_done, [self.robot_scheduled]))
             
             robot_task_to_be_done = np.setdiff1d(self.robot_task_id, task_scheduled_so_far)
             operator_task_to_be_done = np.setdiff1d(self.operator_task_id, task_scheduled_so_far)
@@ -314,7 +323,44 @@ class CobotEnv:
                 return True
         
         return False
-            
+
+
+    def get_valid_actions(self) -> torch.Tensor:
+        """
+        Generates a masking tensor for invalid actions based on the current state.
+
+        Returns
+        -------
+            torch.Tensor
+                1D tensor of size equal to the total number of possible actions,
+                containing 1 for valid actions and 0 for invalid actions.
+        """
+        # initialize the masking tensor with all 0
+        mask = torch.zeros(max(max(self.robot_task_id), max(self.operator_task_id))+1, dtype=torch.int64)
+    
+        # find actions no longer available
+        robot_task_done = self.robot_task_id[self.robot_done == 1]
+        operator_task_done = self.operator_task_id[self.operator_done == 1]
+        tasks_done = np.concatenate((robot_task_done, operator_task_done))
+    
+        # if robot or both robot and operator have no scheduled tasks, find only actions schedulable for robot
+        if self.robot_scheduled == 0:
+            mask[self.robot_task_id] = 1  # robot schedulable tasks
+        elif self.operator_scheduled == 0:
+            mask[self.operator_task_id] = 1  # operator schedulable tasks
+    
+        # mask out already done actions
+        mask[tasks_done] = 0
+    
+        # if a task is already scheduled, exclude it from the options
+        if self.robot_scheduled != 0:
+            mask[self.robot_scheduled] = 0
+        if self.operator_scheduled != 0:
+            mask[self.operator_scheduled] = 0
+    
+        #return mask # lenght of mask = 21, the mask[0] is always zero, valutare se restituire mask[1:]
+        return mask[1:] # return only 
+    
             
     def sample_process_time(self) -> np.ndarray:
         """
@@ -322,8 +368,8 @@ class CobotEnv:
 
         Returns
         -------
-        np.ndarray
-            Array of shape (n_operators x n_tasks) containing the processing time for each task for each operator.
+            np.ndarray
+                Array of shape (n_operators x n_tasks) containing the processing time for each task for each operator.
         """
         
         return np.array([np.around(np.random.normal(loc=self.mu_operators[i], scale=self.std), decimals=3) for i in range(self.n_operators)])
@@ -335,8 +381,8 @@ class CobotEnv:
 
         Parameters
         ----------
-        id_operator: int
-            Id of the new operator.
+            id_operator: int
+                Id of the new operator.
         """
         
         assert new_id_operator < self.n_operators, "Invalid Input!"
@@ -355,8 +401,8 @@ class CobotEnv:
 
         Returns
         -------
-        bool
-            True whether the episode is over, False otherwise.
+            bool
+                True whether the episode is over, False otherwise.
         """
         
         return np.sum(self.robot_done) + np.sum(self.operator_done) == 20.0 # sum of number tasks done by robot and tasks done by operators must be 20 at the end of an episode
@@ -368,8 +414,8 @@ class CobotEnv:
 
         Returns
         -------
-        float
-            Episode elapsed time.
+            float
+                Episode elapsed time.
         """
         
         # robot total time
@@ -386,8 +432,8 @@ class CobotEnv:
 
         Returns
         -------
-        tuple
-            Current state.
+            tuple
+                Current state.
         """
         
         return self.robot_done, self.robot_scheduled, self.robot_execution_time, self.operator_done, self.operator_scheduled, self.operator_execution_time
