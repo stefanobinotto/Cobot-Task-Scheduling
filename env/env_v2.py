@@ -95,12 +95,7 @@ class CobotEnv:
         robot_task_done = self.robot_task_id[self.robot_done == 1]
         operator_task_done = self.operator_task_id[self.operator_done == 1]
         task_done = np.concatenate((robot_task_done, operator_task_done))
-        if action in task_done:
-            print("\rAzione: ",action)
-            print("\rTask fatti finora: ",task_done)
-            print("\rMaschera: ",self.get_valid_actions())
         assert (action not in task_done), "Invalid input! Task already done!"
-
         
         # change operator and update execution time in state
         if new_id_operator is not None:
@@ -108,7 +103,6 @@ class CobotEnv:
 
         initial_time = self.get_total_time()
 
-        
         #######################
         ### Task assignment ###
         #######################
@@ -145,7 +139,6 @@ class CobotEnv:
 
             # update state - operator
             self.operator_scheduled = action
-
         
         ########################
         ### Task fulfillment ###
@@ -201,7 +194,6 @@ class CobotEnv:
             bool
                 True if the episode is over, False otherwise.
         """
-
         if self.robot_scheduled == 0 and self.operator_scheduled == 0:
             
             # Check whether robot and operator have no schedulable tasks in common, or one of them has no longer schedulable tasks
@@ -244,7 +236,7 @@ class CobotEnv:
                
                 self.robot_done[np.where(np.isin(self.robot_task_id, robot_task_to_be_done))[0]] = 1
                 self.operator_done[np.where(np.isin(self.operator_task_id, operator_task_to_be_done))[0]] = 1
-                self.operator_done[np.where(np.isin(self.operator_task_id, robot_task_to_be_done))[0]] = 0 # l'ultimo task rimasto al robot, che è un task in comune, non deve essere segnato fatto anche da operator  
+                self.operator_done[np.where(np.isin(self.operator_task_id, robot_task_to_be_done))[0]] = 0
 
                 # end of episode
                 return True
@@ -281,7 +273,7 @@ class CobotEnv:
                
                 self.robot_done[np.where(np.isin(self.robot_task_id, robot_task_to_be_done))[0]] = 1           
                 self.operator_done[np.where(np.isin(self.operator_task_id, operator_task_to_be_done))[0]] = 1
-                self.operator_done[np.where(np.isin(self.operator_task_id, robot_task_to_be_done))[0]] = 0 # l'ultimo task rimasto al robot, che è un task in comune, non deve essere segnato fatto anche da operator  
+                self.operator_done[np.where(np.isin(self.operator_task_id, robot_task_to_be_done))[0]] = 0
 
                 # end of episode
                 return True
@@ -371,7 +363,6 @@ class CobotEnv:
             np.ndarray
                 Array of shape (n_operators x n_tasks) containing the processing time for each task for each operator.
         """
-        
         return np.array([np.around(np.random.normal(loc=self.mu_operators[i], scale=self.std), decimals=3) for i in range(self.n_operators)])
 
 
@@ -417,7 +408,6 @@ class CobotEnv:
             float
                 Episode elapsed time.
         """
-        
         # robot total time
         r = np.sum(self.robot_done*self.robot_execution_time)
         # operator total time
@@ -435,5 +425,4 @@ class CobotEnv:
             tuple
                 Current state.
         """
-        
         return self.robot_done, self.robot_scheduled, self.robot_execution_time, self.operator_done, self.operator_scheduled, self.operator_execution_time
