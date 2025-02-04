@@ -18,13 +18,13 @@ def set_seed(seed: int = None) -> None:
     """
     assert seed is not None, "Invalid seed!"
     
-    os.environ["PYTHONHASHSEED"] = str(seed)  # set seed for Python hashes
-    np.random.seed(seed)                     # set seed for NumPy
-    random.seed(seed)                        # set seed for random module
-    torch.manual_seed(seed)                  # set seed for PyTorch on CPU
-    if torch.cuda.is_available():            # if GPU is available
-        torch.cuda.manual_seed(seed)         # set seed for CUDA
-        torch.cuda.manual_seed_all(seed)     # set seed for all GPUs
+    os.environ["PYTHONHASHSEED"] = str(seed)       # set seed for Python hashes
+    np.random.seed(seed)                           # set seed for NumPy
+    random.seed(seed)                              # set seed for random module
+    torch.manual_seed(seed)                        # set seed for PyTorch on CPU
+    if torch.cuda.is_available():                  # if GPU is available
+        torch.cuda.manual_seed(seed)               # set seed for CUDA
+        torch.cuda.manual_seed_all(seed)           # set seed for all GPUs
         torch.backends.cudnn.deterministic = True  # ensure reproducibility
         torch.backends.cudnn.benchmark = False     # disable non-deterministic optimisations
 
@@ -107,7 +107,7 @@ def soft_update(main_model: nn.Module, target_model: nn.Module, tau: float) -> N
 
 def read_hyperparameters() -> dict:
     """
-    Read the hyperparameters from textfile.
+    Read the hyperparameters from .yml file.
 
     Returns
     -------
@@ -116,8 +116,7 @@ def read_hyperparameters() -> dict:
     """
     with open('hyperparameters.yml', 'r') as file:
         args = yaml.safe_load(file)
-        
-    # Hyperparameter Setting
+    return args
     #LR, type=float, required=True, help="Learning Rate"
     #LR_STEP_SIZE, type=int, default=None, help="Period of learning rate decay. If None, no lr decayment is performed"
     #LR_GAMMA, type=float, default=None, help="Multiplicative factor of learning rate decay. If None, no lr decayment is performed"
@@ -138,25 +137,3 @@ def read_hyperparameters() -> dict:
     #BEST_MODEL_PATH, type=str, required=True, help='Path (with extension .pt) for saving the best model'
     #LOG_PATH, type=str, required=True, help='Path for saving the best model'
     #PLOT_PATH, type=str, required=True, help='Path for saving the learning curves plot'
-    
-    return args
-
-
-#def str2bool(v) -> bool:
-#    '''
-#    Transfer str to bool for argparse:
-#    ('yes', 'True','true','TRUE', 't', 'y', '1') -> True
-#    ('no', 'False','false','FALSE', 'f', 'n', '0') -> False
-
-#    Returns
-#    -------
-#        bool
-#    '''
-#    if isinstance(v, bool):
-#        return v
-#    if v.lower() in ('yes','True','true','TRUE','t','y','1'):
-#        return True
-#    elif v.lower() in ('no','False','false','FALSE','f','n','0'):
-#        return False
-#    else:
-#        raise TypeError("Only 'yes', 'True', 'true', 'TRUE', 't', 'y', '1' or 'no', 'False', 'false', 'FALSE', 'f', 'n', '0' are allowed!")
