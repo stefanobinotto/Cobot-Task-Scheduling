@@ -4,6 +4,7 @@ import torch.nn as nn
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import argparse
 import yaml
 
@@ -29,20 +30,30 @@ def set_seed(seed: int = None) -> None:
         torch.backends.cudnn.benchmark = False     # disable non-deterministic optimisations
 
 
-def plot(scores: list, losses: list, epsilons: list, lrs: list, path: str) -> None:
+def plot(data: pd.DataFrame, path: str) -> None:
     # Creazione della figura e dei sottografi (subplots)
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8)) #(12, 8)
+
+    # calculate the rolling average with a window size
+    window_size = 10 #5
+    data['Running Average'] = data['Score'].rolling(window=window_size).mean()
+    # fit a linear trend line (polynomial of degree 1)
+    trend = np.polyfit(data['Episode'], data['Score'], 1)  # Linear regression
+    trend_line = np.poly1d(trend)
+
     
     # Grafico 1: Punteggi
-    axs[0, 0].plot(scores, label="Score", color="blue")
+    axs[0, 0].plot(data['Episode'], data['Score'], label="Score", alpha=0.7, color="orange")
+    axs[0, 0].plot(data['Episode'], data['Running Average'], label=f'Running Avg. (Window={window_size})', color="darkorange", linewidth=2)
+    axs[0, 0].plot(data['Episode'], trend_line(data['Episode']), label='Trend', color="orangered", linestyle='--', alpha=0.8)
     axs[0, 0].set_title("Score")
     axs[0, 0].set_xlabel("Episode")
     axs[0, 0].set_ylabel("Score")
     axs[0, 0].grid(True)
-    #axs[0, 0].legend()
+    axs[0, 0].legend()
     
     # Grafico 2: Loss
-    axs[0, 1].plot(losses, label="Loss", color="red")
+    axs[0, 1].plot(data['Episode'], data['Loss'], label="Loss", color="red")
     axs[0, 1].set_title("Loss")
     axs[0, 1].set_xlabel("Episode")
     axs[0, 1].set_ylabel("Loss")
@@ -50,7 +61,7 @@ def plot(scores: list, losses: list, epsilons: list, lrs: list, path: str) -> No
     #axs[0, 1].legend()
     
     # Grafico 3: Epsilon
-    axs[1, 0].plot(epsilons, label="Epsilon", color="green")
+    axs[1, 0].plot(data['Episode'], data['Epsilon'], label="Epsilon", color="green")
     axs[1, 0].set_title("Epsilon")
     axs[1, 0].set_xlabel("Episode")
     axs[1, 0].set_ylabel("Epsilon")
@@ -58,7 +69,7 @@ def plot(scores: list, losses: list, epsilons: list, lrs: list, path: str) -> No
     #axs[1, 0].legend()
     
     # Grafico 4: Learning Rate
-    axs[1, 1].plot(lrs, label="Learning Rate", color="orange")
+    axs[1, 1].plot(data['Episode'], data['LearningRate'],  label="Learning Rate", color="blue")
     axs[1, 1].set_title("Learning Rate")
     axs[1, 1].set_xlabel("Episode")
     axs[1, 1].set_ylabel("Learning Rate")
@@ -67,7 +78,7 @@ def plot(scores: list, losses: list, epsilons: list, lrs: list, path: str) -> No
     
     # Miglioriamo il layout e salviamo il grafico
     plt.tight_layout()
-    plt.savefig(path)
+    plt.savefig(path, dpi=300)
 
 
 def hard_update(main_model: nn.Module, target_model: nn.Module) -> None:
