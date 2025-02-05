@@ -2,9 +2,8 @@ from utils.functions import read_hyperparameters, set_seed
 from agent import Agent
 
 def main():
-    # read hyperparams from file using '@' in CLI (e.g. python main.py @args.txt)
+    # import hyperparameters
     hyperparameters = read_hyperparameters()
-    print(hyperparameters["HIDDEN_LAYERS"])
     # deterministic behaviour
     if hyperparameters['SEED'] is not None:
         set_seed(hyperparameters['SEED'])
