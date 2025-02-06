@@ -34,7 +34,7 @@ class Agent:
         # optimization algorithm
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=self.hp['LR'])
         # reduce lr
-        if self.hp['LR_STEP_SIZE'] is not None and self.hp['LR_FACTOR'] is not None:
+        if self.hp['LR_STEP_SIZE'] is not None or self.hp['LR_FACTOR'] is not None:
             # STEP LR
 ####            self.scheduler = StepLR(self.optimizer, step_size=self.hp['LR_STEP_SIZE'], gamma=self.hp['LR_FACTOR'])
             # REDUCE LR ON PLATEAU
@@ -147,7 +147,7 @@ class Agent:
         # initialize epsilon
         epsilon = self.hp['EPSILON_START']
         
-        for episode in tqdm(range(1, n_episodes+1), desc="# of episodes:"):
+        for episode in tqdm(range(1, n_episodes+1), desc="# of episodes"):
         #for episode in range(1, n_episodes+1):
             #print("\rEpisode n°:", episode)
             state = env.reset()
@@ -187,14 +187,11 @@ class Agent:
                     update_count += 1
 
                     if self.hp['HARD_UPDATE_EVERY'] is None:
-                        soft_update(self.policy_net, self.target_net)
-                        self.target_network.eval()
+                        soft_update(self.policy_net, self.target_net, self.hp['TAU'])
                     else:
                         if update_count > self.hp['HARD_UPDATE_EVERY']:
                             update_count = 0
-                            #print("\rHard Update Target Network!")
                             hard_update(self.policy_net, self.target_net)
-                            self.target_net.eval()
                         
                     # Decay epsilon after every update
                     if self.hp['EPSILON_DECAY'] is None:
@@ -229,11 +226,12 @@ class Agent:
             else:
                 losses.append(episode_loss/loss_count)
             epsilons.append(epsilon)
-            lrs.append(self.scheduler.get_last_lr()[0])
-            
             # update lr after every episode (only if at least one update step has been done)
-            if self.hp['LR_STEP_SIZE'] is not None and self.hp['LR_FACTOR'] is not None and loss_count>0:
-                    self.scheduler.step(episode_loss/loss_count)
+            if (self.hp['LR_STEP_SIZE'] is not None or self.hp['LR_FACTOR'] is not None) and loss_count>0:
+                lrs.append(self.scheduler.get_last_lr()[0])
+                self.scheduler.step(episode_loss/loss_count)
+            else:
+                lrs.append(self.hp['LR'])
 
         # save training logs
         data = {
@@ -241,13 +239,13 @@ class Agent:
             "Score": scores,
             "Loss": losses,
             "Epsilon": epsilons,
-            "LearningRate": lrs,
+            "Learning rate": lrs,
             "Model saving": saves
         }
         df = pd.DataFrame(data)
         df.to_csv(self.hp['LOG_PATH'], index=False)
         plot(df, self.hp['PLOT_PATH'])
-        print(f"\rEpisode score: {best_episode_score}.") 
+        print(f"\rBest episode score: {best_episode_score}.") 
         print(f"Dati salvati in {self.hp['LOG_PATH']} e plottati in {self.hp['PLOT_PATH']}.") 
                 
 
