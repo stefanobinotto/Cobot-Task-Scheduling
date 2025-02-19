@@ -4,4 +4,5 @@ prova_modello_ppo.ipynb
 prova.ipynb
 *.pyc
 __pycache__
+runs
 
