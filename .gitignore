@@ -3,3 +3,5 @@
 prova_modello_ppo.ipynb
 prova.ipynb
 *.pyc
+__pycache__
+
