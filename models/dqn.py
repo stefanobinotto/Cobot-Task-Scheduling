@@ -30,7 +30,6 @@ class DQN(nn.Module):
             self.linears.append(nn.Linear(prev_size, l_size))
             prev_size = l_size
         self.linear_out = nn.Linear(prev_size, self.output_dim)
-        #self.bc_norm = nn.BatchNorm1d(self.input_dim)
 
         
     def forward(self, x):
@@ -42,7 +41,6 @@ class DQN(nn.Module):
             x: torch.Tensor
                 Input tensor.
         """
-        #x=self.bc_norm(x)
         for l in self.linears:
             x = F.relu(l(x))
             #print(x)
