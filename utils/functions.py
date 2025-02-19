@@ -30,7 +30,7 @@ def set_seed(seed: int = None) -> None:
         torch.backends.cudnn.benchmark = False     # disable non-deterministic optimisations
 
 
-def plot(data: pd.DataFrame, path: str) -> None:
+def single_run_plot(data: pd.DataFrame, path: str) -> None:
     # Figure and subplots
     fig, axs = plt.subplots(2, 2, figsize=(14, 8))
 
@@ -87,6 +87,70 @@ def plot(data: pd.DataFrame, path: str) -> None:
     axs[1, 1].set_ylabel("Learning Rate")
     axs[1, 1].grid(True)
     #axs[1, 1].legend()
+    
+    # Miglioriamo il layout e salviamo il grafico
+    plt.tight_layout()
+    plt.savefig(path, dpi=300)
+
+
+def plot(all_scores: list, all_losses: list, epsilons: list, path: str) -> None:
+    # Figure and subplots
+    _, axs = plt.subplots(3, 1, figsize=(12, 8))
+
+    # mean and std
+    df = pd.DataFrame()
+    df['mean_scores'] = pd.DataFrame(np.mean(np.array(all_scores), axis=0))
+    df['std_scores'] = pd.DataFrame(np.std(np.array(all_scores), axis=0))
+    df['mean_losses'] = pd.DataFrame(np.mean(np.array(all_losses), axis=0))
+    df['std_losses'] = pd.DataFrame(np.std(np.array(all_losses), axis=0))
+    # Compute rolling averages
+    window_size = 10
+    df['rolling_mean_scores'] = df['mean_scores'].rolling(window=window_size).mean()
+    df['rolling_std_scores'] = df['std_scores'].rolling(window=window_size).mean()
+    df['rolling_mean_losses'] = df['mean_losses'].rolling(window=window_size).mean()
+    df['rolling_std_losses'] = df['std_losses'].rolling(window=window_size).mean()
+
+    # Score
+    axs[0].plot(df['rolling_mean_scores'], label=f"Rolling avg. (w={window_size})", color="blue")
+    axs[0].fill_between(
+        range(len(df['rolling_mean_scores'])),
+        df['rolling_mean_scores'] - df['rolling_std_scores'],
+        df['rolling_mean_scores'] + df['rolling_std_scores'],
+        color='blue',
+        alpha=0.2,
+        label='Std dev',
+        linewidth=0
+    )
+    axs[0].set_title("Score")
+    axs[0].set_xlabel("Episode")
+    axs[0].set_ylabel("Score")
+    axs[0].grid(True)
+    axs[0].legend()
+    
+    # Loss
+    axs[1].plot(df['rolling_mean_losses'], label=f"Rolling avg. (w={window_size})", color="red")
+    axs[1].fill_between(
+        range(len(df['rolling_mean_losses'])),
+        df['rolling_mean_losses'] - df['rolling_std_losses'],
+        df['rolling_mean_losses'] + df['rolling_std_losses'],
+        color='red',
+        alpha=0.2,
+        label='Std dev',
+        linewidth=0
+    )
+    axs[1].set_title("Loss")
+    axs[1].set_xlabel("Episode")
+    axs[1].set_ylabel("Loss")
+    axs[1].grid(True)
+    axs[1].legend()
+
+    # Grafico 3: Epsilon
+    axs[2].plot(epsilons, label="Epsilon", color="green")
+    axs[2].set_title("Epsilon")
+    axs[2].set_xlabel("Episode")
+    axs[2].set_ylabel("Epsilon")
+    axs[2].grid(True)
+    #axs[1, 0].legend()
     
     # Miglioriamo il layout e salviamo il grafico
     plt.tight_layout()
