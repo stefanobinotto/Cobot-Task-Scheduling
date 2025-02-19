@@ -274,16 +274,15 @@ class Agent:
     def test(self, n_runs: int = 200):
         # load checkpoint
         checkpoint = torch.load(self.hp['MODEL_PATH'], weights_only=False)
+        print('\rModel saved - Episode {} - Score (SMA): {:.2f}'.format(checkpoint['episode'], checkpoint['best_score']))
+        
         # load model weights
         self.policy_net.load_state_dict(checkpoint['model_state_dict'])
         self.policy_net.eval()
 
-        best_score = checkpoint['best_score']
-        episode = checkpoint['episode']
-        print('\rModel saved - Episode {} - Score (SMA): {:.2f}'.format(episode, best_score))
-
         env = CobotEnv()
         scores = []
+        combos = {}
 
         for _ in range(n_runs):
             state = env.reset(0)
@@ -300,6 +299,16 @@ class Agent:
                 # cumulate reward
                 episode_score += reward
             scores.append(episode_score)
+
+            combo = np.array([0,0,0,0,0,0])
+            combo[np.where(np.isin(np.array([7,8,9,12,13,14]), env.operator_done*env.operator_task_id))[0]] = 1
+            if str(combo) in combos.keys():
+                combos[str(combo)] += 1
+            else:
+                combos[str(combo)] = 1
+
+        with open('slow_DQN.txt', 'a') as f:
+            print(combos, file=f)
             
         print("Mean Score:",np.mean(scores))
         print("Std Score:",np.std(scores))
