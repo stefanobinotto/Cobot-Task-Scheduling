@@ -187,7 +187,7 @@ class CobotEnv:
 
     def check_and_finish(self) -> bool:
         """
-        Check whether the episode can be concluded in this step, then end it.
+        Check whether the episode can be concluded in this step.
         
         Returns
         -------
@@ -350,7 +350,7 @@ class CobotEnv:
         if self.operator_scheduled != 0:
             mask[self.operator_scheduled] = 0
     
-        #return mask # lenght of mask = 21, the mask[0] is always zero, valutare se restituire mask[1:]
+        #return mask
         return mask[1:] # return only 
     
             
@@ -368,7 +368,7 @@ class CobotEnv:
 
     def set_operator(self, new_id_operator: int) -> None:
         """
-        Set new operator and change operator execution time in state.
+        Set new operator and change operator execution time in state (to be called at the beginning of an episode).
 
         Parameters
         ----------
@@ -380,11 +380,8 @@ class CobotEnv:
 
         # set new id operator
         self.id_operator = new_id_operator
-        
-        # only update the time of those tasks that are not done by robot or operator yet 
-        self.operator_execution_time[np.intersect1d(np.where(self.operator_done==0)[0], np.where(self.robot_done==0)[0])] = \
-                self.operators_sampled_time[self.id_operator][np.intersect1d(np.where(self.operator_done==0)[0], np.where(self.robot_done==0)[0])]
 
+        self.operator_execution_time = self.operators_sampled_time[self.id_operator]
 
     def is_over(self) -> bool:
         """
