@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 import pandas as pd
 import random
-#import math
 
 from collections import deque
 
@@ -74,6 +73,7 @@ class Agent:
         s5 = torch.tensor([max(r,t)-min(r,t)], dtype=torch.float32) # elapsed time of the task still in progress
         
         return torch.cat((s0,s1,s2,s3,s4,s5)).to(self.device)
+        #return torch.cat((s0,s1,s2,s3,s4)).to(self.device)
 
     
     def act(self, state: torch.Tensor, mask: torch.Tensor, epsilon: float) -> torch.Tensor:
@@ -307,8 +307,8 @@ class Agent:
             else:
                 combos[str(combo)] = 1
 
-        with open('slow_DQN.txt', 'a') as f:
+        with open('slow_delta_DQN.txt', 'a') as f:
             print(combos, file=f)
             
-        print("Mean Score:",np.mean(scores))
-        print("Std Score:",np.std(scores))
+        #print("Mean Score:",np.mean(scores))
+        #print("Std Score:",np.std(scores))
