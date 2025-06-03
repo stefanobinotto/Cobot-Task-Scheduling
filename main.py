@@ -26,14 +26,14 @@ def main():
     for i in range(hyperparameters['N_EXPERIMENTS']):
         agent = Agent(hyperparameters)
         logs = agent.train()
-        logs.to_csv(hyperparameters['LOG_PATH']+str(i+1)+"_run.csv", index=False)
+        logs.to_csv(hyperparameters['LOG_PATH']+"op_"+str(hyperparameters['ID_OPERATOR'])+"_training_run_"+str(i+1)+".csv", index=False)
         all_scores.append(logs['Score'])
         all_losses.append(logs['Loss'])
         # free CUDA memory
         del agent
         torch.cuda.empty_cache()
 
-    plot(all_scores, all_losses, logs['Epsilon'], hyperparameters['LOG_PATH']+"curves.png")  
+    plot(all_scores, all_losses, logs['Epsilon'], hyperparameters['LOG_PATH']+"op_"+str(hyperparameters['ID_OPERATOR'])+"_curves.pdf")  
 
 
 if __name__ == "__main__":

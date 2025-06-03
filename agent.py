@@ -70,10 +70,10 @@ class Agent:
         s2 = torch.tensor(state[2], dtype=torch.float32)            # robot execution time
         s3 = torch.tensor(state[3], dtype=torch.float32)            # operator done
         s4 = torch.tensor([state[4]], dtype=torch.float32)          # operator scheduled
-        s5 = torch.tensor([max(r,t)-min(r,t)], dtype=torch.float32) # elapsed time of the task still in progress
+        #s5 = torch.tensor([max(r,t)-min(r,t)], dtype=torch.float32) # elapsed time of the task still in progress
         
-        return torch.cat((s0,s1,s2,s3,s4,s5)).to(self.device)
-        #return torch.cat((s0,s1,s2,s3,s4)).to(self.device)
+        #return torch.cat((s0,s1,s2,s3,s4,s5)).to(self.device)
+        return torch.cat((s0,s1,s2,s3,s4)).to(self.device)
 
     
     def act(self, state: torch.Tensor, mask: torch.Tensor, epsilon: float) -> torch.Tensor:
@@ -156,8 +156,21 @@ class Agent:
         """
         
         """
+
+        # (mu, dev std) operator data for sampling execution times
+        operator = pd.read_csv("operators_data.csv")
+        # list of means for sampling execution times
+        mu = operator["mu_"+str(self.hp['ID_OPERATOR'])].to_list()
+        # dev std for sampling execution times
+        sigma = operator["sigma_"+str(self.hp['ID_OPERATOR'])][0] # just one float needed
+
+        print("mu operator "+str(self.hp['ID_OPERATOR'])+":",mu)
+        print("sigma operator "+str(self.hp['ID_OPERATOR'])+":",sigma)
+
         # instance of the environment
-        env = CobotEnv()
+        env = CobotEnv(n_operators=1,
+                       mu_operators=(mu,),
+                       std=sigma)
 
         # list to keep track of return, loss, epsilon, lr and model saving collected from every episode
         scores, losses, epsilons, lrs = [], [], [], []
@@ -240,11 +253,7 @@ class Agent:
                     # update best score
                     best_score = np.mean(score_window)
                     # save model
-                    torch.save({
-                        "best_score": best_score,
-                        "episode": episode,
-                        "model_state_dict": self.policy_net.state_dict()
-                    }, self.hp['LOG_PATH']+"checkpoint.pt")
+                    torch.save({"best_score": best_score, "episode": episode, "model_state_dict": self.policy_net.state_dict()}, self.hp['LOG_PATH']+"op_"+str(self.hp['ID_OPERATOR'])+"_checkpoint.pt")
 
             # training logs
             scores.append(episode_score)

@@ -95,7 +95,8 @@ def single_run_plot(data: pd.DataFrame, path: str) -> None:
 
 def plot(all_scores: list, all_losses: list, epsilons: list, path: str) -> None:
     # Figure and subplots
-    _, axs = plt.subplots(3, 1, figsize=(12, 8))
+    #_, axs = plt.subplots(3, 1, figsize=(8, 6))
+    _, axs = plt.subplots(1, 1, figsize=(6, 4))
 
     # mean and std
     df = pd.DataFrame()
@@ -111,50 +112,50 @@ def plot(all_scores: list, all_losses: list, epsilons: list, path: str) -> None:
     df['rolling_std_losses'] = df['std_losses'].rolling(window=window_size).mean()
 
     # Score
-    axs[0].plot(df['rolling_mean_scores'], label=f"Rolling avg. (w={window_size})", color="blue")
+    axs[0].plot(df['rolling_mean_scores'])#, label=f"Rolling avg. (w={window_size})", color="blue")   uncomment for label
     axs[0].fill_between(
         range(len(df['rolling_mean_scores'])),
         df['rolling_mean_scores'] - df['rolling_std_scores'],
         df['rolling_mean_scores'] + df['rolling_std_scores'],
         color='blue',
         alpha=0.2,
-        label='Std dev',
+        #label='Std dev',         uncomment for label
         linewidth=0
     )
-    axs[0].set_title("Score")
+    #axs[0].set_title("Score")
     axs[0].set_xlabel("Episode")
-    axs[0].set_ylabel("Score")
+    axs[0].set_ylabel("Score (min)")
     axs[0].grid(True)
     axs[0].legend()
     
     # Loss
-    axs[1].plot(df['rolling_mean_losses'], label=f"Rolling avg. (w={window_size})", color="red")
-    axs[1].fill_between(
-        range(len(df['rolling_mean_losses'])),
-        df['rolling_mean_losses'] - df['rolling_std_losses'],
-        df['rolling_mean_losses'] + df['rolling_std_losses'],
-        color='red',
-        alpha=0.2,
-        label='Std dev',
-        linewidth=0
-    )
-    axs[1].set_title("Loss")
-    axs[1].set_xlabel("Episode")
-    axs[1].set_ylabel("Loss")
-    axs[1].grid(True)
-    axs[1].legend()
+    #axs[1].plot(df['rolling_mean_losses'], label=f"Rolling avg. (w={window_size})", color="red")
+    #axs[1].fill_between(
+    #    range(len(df['rolling_mean_losses'])),
+    #    df['rolling_mean_losses'] - df['rolling_std_losses'],
+    #    df['rolling_mean_losses'] + df['rolling_std_losses'],
+    #    color='red',
+    #    alpha=0.2,
+    #    label='Std dev',
+    #    linewidth=0
+    #)
+    #axs[1].set_title("Loss")
+    #axs[1].set_xlabel("Episode")
+    #axs[1].set_ylabel("Loss")
+    #axs[1].grid(True)
+    #axs[1].legend()
 
     # Grafico 3: Epsilon
-    axs[2].plot(epsilons, label="Epsilon", color="green")
-    axs[2].set_title("Epsilon")
-    axs[2].set_xlabel("Episode")
-    axs[2].set_ylabel("Epsilon")
-    axs[2].grid(True)
+    #axs[2].plot(epsilons, label="Epsilon", color="green")
+    #axs[2].set_title("Epsilon")
+    #axs[2].set_xlabel("Episode")
+    #axs[2].set_ylabel("Epsilon")
+    #axs[2].grid(True)
     #axs[1, 0].legend()
     
     # Miglioriamo il layout e salviamo il grafico
     plt.tight_layout()
-    plt.savefig(path, dpi=300)
+    plt.savefig(path, dpi=600)
 
 
 def hard_update(main_model: nn.Module, target_model: nn.Module) -> None:
@@ -204,23 +205,3 @@ def read_hyperparameters() -> dict:
     with open('hyperparameters.yml', 'r') as file:
         args = yaml.safe_load(file)
     return args
-    #LR, type=float, required=True, help="Learning Rate"
-    #LR_STEP_SIZE, type=int, default=None, help="Period of learning rate decay. If None, no lr decayment is performed"
-    #LR_GAMMA, type=float, default=None, help="Multiplicative factor of learning rate decay. If None, no lr decayment is performed"
-    #BUFFER_SIZE, type=int, required=True, help="Size of the Experience Replay buffer"
-    #BATCH_SIZE, type=int, required=True, help="Size of the mini-batch sampled from the Replay buffer"
-    #GAMMA, type=float, required=True, help="Discount factor"
-    #N_EPISODES, type=int, default=None, help="Number of episodes for training"
-    #HARD_UPDATE_EVERY, type=int, default=None, help="After this number of steps/updates, hard update the target model. If None, soft update is performed"
-    #TAU, type=float, required=True, help="Multiplicative factor for soft update."
-    #EPSILON_START, type=float, required=True, help="Initial epsilon"
-    #EPSILON_END, type=float, required=True, help="Final epsilon"
-    #EPSILON_DECAY, type=float, default=None, help="Factor of epsilon decayment. If None, epsilon decays linearly w.r.t the number of episodes"
-    #STATE_SIZE, type=int, required=True, help="State dimension"
-    #ACTION_SIZE, type=int, required=True, help="Number of actions"
-    #HIDDEN_LAYERS, type=int, nargs="+", required=True, help="Number of neurons (e.g. 256 128 64)") # nargs="+" per avere una lista da 1 a più elementi
-    #SEED, type=int, default=None, help="Set seed if deterministic behaviour is needed, ignore otherwise"
-    #TRAIN_MODE, type=str2bool, default=True, help='True: Train mode; False: Evaluation mode'
-    #BEST_MODEL_PATH, type=str, required=True, help='Path (with extension .pt) for saving the best model'
-    #LOG_PATH, type=str, required=True, help='Path for saving the best model'
-    #PLOT_PATH, type=str, required=True, help='Path for saving the learning curves plot'

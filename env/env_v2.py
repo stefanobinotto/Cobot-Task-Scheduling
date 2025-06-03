@@ -10,9 +10,10 @@ class CobotEnv:
     SLOW_OPERATOR_EXECUTION_TIME = [0.5,0.667,0.333,1,0.5,0.5,0.333,1,0.667,0.5,0.667,0.5,1]
     EXPERT_OPERATOR_EXECUTION_TIME = [round(mu*0.8, 3) for mu in SLOW_OPERATOR_EXECUTION_TIME] # 80% of slow operator, used as mean values
     MU_OPERATORS = (SLOW_OPERATOR_EXECUTION_TIME,EXPERT_OPERATOR_EXECUTION_TIME)
+    STD = 0.04
     
 
-    def __init__(self, n_operators: int = 2, robot_execution_time: list = ROBOT_PROCESS_TIME, id_operator: int = 0, mu_operators: list = MU_OPERATORS, std: float = 0.04) -> None:
+    def __init__(self, n_operators: int = 2, robot_execution_time: list = ROBOT_PROCESS_TIME, id_operator: int = 0, mu_operators: list = MU_OPERATORS, std: float = STD) -> None: #std: float = 0.04
         """
         Initializes an Cobot environment.
 
@@ -382,6 +383,7 @@ class CobotEnv:
         self.id_operator = new_id_operator
 
         self.operator_execution_time = self.operators_sampled_time[self.id_operator]
+
 
     def is_over(self) -> bool:
         """

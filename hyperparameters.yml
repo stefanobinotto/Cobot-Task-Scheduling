@@ -11,11 +11,13 @@ EPSILON_START: 1
 EPSILON_END: 0
 EPS_DECAY_EPISODE: 2400 #4000
 GAMMA: 1
-INPUT_SIZE: 42
 ACTION_SIZE: 20
-LOG_PATH: "runs/"
 ##
-MODEL_PATH: "runs/slow_DQN.pt" # if not None, TEST mode
+INPUT_SIZE: 41 #42 with delta, 41 without delta
+LOG_PATH: "runs/"
+MODEL_PATH: #"runs/slow_delta_DQN.pt" # if not None, TEST mode
 SEED:
-N_EXPERIMENTS: 1
-DOUBLE: True
+N_EXPERIMENTS: 5 #1 #5
+DOUBLE: #True
+
+ID_OPERATOR: 0 # ranges in [0,19], to read operator data from 'operators_data.csv'
